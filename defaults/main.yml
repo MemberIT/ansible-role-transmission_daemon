@@ -1,4 +1,5 @@
 ---
+td_cron_update_blocklist: false
 td_dirs_manage: true
 td_alt_speed_down: 50
 td_alt_speed_enabled: false

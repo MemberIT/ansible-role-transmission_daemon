@@ -101,10 +101,6 @@
 - name: Attempting to execute blocklist related tasks, if applicable
   tags: transmission
   block:
-    - name: Attempting to manually update blocklist
-      become: true
-      command: |
-        /usr/bin/transmission-remote {{ td_rpc_bind_address }}:{{ td_rpc_port }} --blocklist-update
     - name: Attempting to apply blocklist update cronjob
       become: true
       cron:
@@ -114,6 +110,12 @@
         special_time: weekly
         state: present
         user: "{{ td_owner }}"
+      register: cron_update_blocklist
+    - name: Attempting to manually update blocklist
+      become: true
+      command: |
+        /usr/bin/transmission-remote {{ td_rpc_bind_address }}:{{ td_rpc_port }} --blocklist-update
+      when: cron_update_blocklist is changed or td_cron_update_blocklist
   when:
     - td_blocklist_enabled|bool
     - td_blocklist_url is defined
