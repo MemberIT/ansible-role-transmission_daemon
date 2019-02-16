@@ -15,6 +15,7 @@
       loop:
         - libnatpmp1
         - transmission-daemon
+        - transmission-cli
   when: ansible_os_family == 'Debian'
 
 - name: Attempting to execute RedHat related tasks, if applicable
@@ -68,6 +69,7 @@
     - "{{ td_settings|dirname }}"
     - /var/lib/transmission/.config
     - /var/lib/transmission/.config/transmission-daemon
+  when: td_dirs_manage
 
 - name: Attempting to overlay transmission-daemon configuration
   tags: transmission
@@ -78,7 +80,7 @@
     owner: "{{ td_owner }}"
     group: "{{ td_group }}"
     mode: 0600
-  notify: reload transmission-daemon
+  register: transmission_reload
 
 - name: Ensure that transmission-daemon is started and enabled on boot
   tags: transmission
@@ -88,10 +90,19 @@
     name: transmission-daemon
     state: started
 
+- name: reload transmission-daemon
+  tags: transmission
+  become: true
+  service:
+    name: transmission-daemon
+    state: reloaded
+  when: transmission_reload is changed
+
 - name: Attempting to execute blocklist related tasks, if applicable
   tags: transmission
   block:
     - name: Attempting to manually update blocklist
+      become: true
       command: |
         /usr/bin/transmission-remote {{ td_rpc_bind_address }}:{{ td_rpc_port }} --blocklist-update
     - name: Attempting to apply blocklist update cronjob
@@ -102,7 +113,7 @@
         name: Automatically update transmission-daemon blocklist
         special_time: weekly
         state: present
-        user: transmission
+        user: "{{ td_owner }}"
   when:
     - td_blocklist_enabled|bool
     - td_blocklist_url is defined
@@ -130,5 +141,7 @@
       file:
         path: "{{ transmission_daemon_tempfile.path }}"
         state: absent
+  become: true
+  become_user: "{{ td_owner }}"
   when: td_torrents|length > 0
 ...
