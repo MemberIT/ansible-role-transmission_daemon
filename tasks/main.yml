@@ -71,7 +71,7 @@
     - /var/lib/transmission/.config/transmission-daemon
   when: td_dirs_manage
 
-- name: Attempting to overlay transmission-daemon configuration
+- name: First attempting to overlay transmission-daemon configuration
   tags: transmission
   become: true
   template:
@@ -80,7 +80,25 @@
     owner: "{{ td_owner }}"
     group: "{{ td_group }}"
     mode: 0600
-  register: transmission_reload
+  register: transmission_stop
+
+- name: Stop transmission-daemon
+  tags: transmission
+  become: true
+  service:
+    name: transmission-daemon
+    state: stopped
+  when: transmission_stop is changed
+
+- name: Second attempting to overlay transmission-daemon configuration
+  tags: transmission
+  become: true
+  template:
+    src: settings.json.j2
+    dest: "{{ td_settings }}"
+    owner: "{{ td_owner }}"
+    group: "{{ td_group }}"
+    mode: 0600
 
 - name: Ensure that transmission-daemon is started and enabled on boot
   tags: transmission
@@ -89,14 +107,6 @@
     enabled: "{{ td_service_enabled|bool }}"
     name: transmission-daemon
     state: started
-
-- name: reload transmission-daemon
-  tags: transmission
-  become: true
-  service:
-    name: transmission-daemon
-    state: reloaded
-  when: transmission_reload is changed
 
 - name: Attempting to execute blocklist related tasks, if applicable
   tags: transmission
