@@ -100,6 +100,30 @@
     group: "{{ td_group }}"
     mode: 0600
 
+- name: Check if AppArmor profile exists for transmission-daemon
+  tags: transmission
+  become: true
+  stat:
+    path: /etc/apparmor.d/transmission
+  register: td_apparmor_profile
+
+- name: Fix transmission-daemon AppArmor profile to allow systemd notify socket
+  tags: transmission
+  become: true
+  lineinfile:
+    path: /etc/apparmor.d/transmission
+    regexp: 'flags=\(complain\) \{'
+    line: 'profile transmission-daemon /usr/bin/transmission-daemon flags=(complain,attach_disconnected) {'
+    backrefs: true
+  register: td_apparmor_fix
+  when: td_apparmor_profile.stat.exists
+
+- name: Reload AppArmor transmission-daemon profile
+  tags: transmission
+  become: true
+  command: apparmor_parser -r /etc/apparmor.d/transmission
+  when: td_apparmor_fix is changed
+
 - name: Ensure that transmission-daemon is started and enabled on boot
   tags: transmission
   become: true
