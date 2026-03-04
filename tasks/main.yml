@@ -118,10 +118,12 @@
   register: td_apparmor_fix
   when: td_apparmor_profile.stat.exists
 
-- name: Reload AppArmor transmission-daemon profile
+- name: Restart AppArmor to apply transmission-daemon profile fix
   tags: transmission
   become: true
-  command: apparmor_parser -r /etc/apparmor.d/transmission
+  service:
+    name: apparmor
+    state: restarted
   when: td_apparmor_fix is changed
 
 - name: Ensure that transmission-daemon is started and enabled on boot
