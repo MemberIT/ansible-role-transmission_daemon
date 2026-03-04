@@ -120,21 +120,6 @@
     state: restarted
   when: td_apparmor_fix is changed
 
-- name: Remove stale systemd override for transmission-daemon
-  tags: transmission
-  become: true
-  file:
-    path: /etc/systemd/system/transmission-daemon.service.d
-    state: absent
-  register: td_systemd_override_cleanup
-
-- name: Reload systemd daemon after override removal
-  tags: transmission
-  become: true
-  systemd:
-    daemon_reload: true
-  when: td_systemd_override_cleanup is changed
-
 - name: Ensure that transmission-daemon is started and enabled on boot
   tags: transmission
   become: true
