@@ -100,38 +100,40 @@
     group: "{{ td_group }}"
     mode: 0600
 
-- name: Ensure that systemd override directory exists for transmission-daemon
+- name: Fix AppArmor transmission profile (add attach_disconnected flag)
+  tags: transmission
+  become: true
+  copy:
+    src: apparmor-transmission
+    dest: /etc/apparmor.d/transmission
+    owner: root
+    group: root
+    mode: 0644
+  register: td_apparmor_fix
+  when: ansible_os_family == 'Debian'
+
+- name: Reload AppArmor to apply fixed transmission profile
+  tags: transmission
+  become: true
+  service:
+    name: apparmor
+    state: restarted
+  when: td_apparmor_fix is changed
+
+- name: Remove stale systemd override for transmission-daemon
   tags: transmission
   become: true
   file:
     path: /etc/systemd/system/transmission-daemon.service.d
-    state: directory
-    owner: root
-    group: root
-    mode: 0755
+    state: absent
+  register: td_systemd_override_cleanup
 
-- name: Deploy systemd override for transmission-daemon service type
-  tags: transmission
-  become: true
-  copy:
-    dest: /etc/systemd/system/transmission-daemon.service.d/override.conf
-    owner: root
-    group: root
-    mode: 0644
-    content: |
-      # Managed by Ansible
-      # Fix startup timeout: AppArmor blocks sd_notify socket in systemd namespace,
-      # causing Type=notify to hang until timeout. Type=simple sidesteps the issue.
-      [Service]
-      Type=simple
-  register: td_systemd_override
-
-- name: Reload systemd daemon
+- name: Reload systemd daemon after override removal
   tags: transmission
   become: true
   systemd:
     daemon_reload: true
-  when: td_systemd_override is changed
+  when: td_systemd_override_cleanup is changed
 
 - name: Ensure that transmission-daemon is started and enabled on boot
   tags: transmission
